@@ -1,0 +1,169 @@
+---
+title: "Prepocess LINCS Level 5"
+author: "Aaron Troy"
+date: "2023-02-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r importLibs}
+suppressMessages(library(dplyr))
+suppressMessages(library(cmapR))
+suppressMessages(library(tibble))
+
+# Libraries for submitting CLUE and JSON queries 
+suppressMessages(library(httr))
+suppressMessages(library(jsonlite))
+
+```
+### Read in the required meta data
+
+```{r readMetaDAta}
+setwd("~/Bioinformatics/Drug repurposing autoencoder/LINCS_level_5/")
+
+lincs_data_path = "data/GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx"
+hf_data_path = "data/unadjusted_DEGs_deseq.csv"
+gene_meta_data_path = "data/GSE92742_Broad_LINCS_gene_info.txt"
+sig_meta_data_path = "data/GSE92742_Broad_LINCS_sig_info.txt"
+sig_metrics_path = "data/GSE92742_Broad_LINCS_sig_metrics.txt"
+
+
+HF_data <- read.csv(hf_data_path, sep = ',')
+
+gene_meta_data <- read.csv(gene_meta_data_path, sep = '\t')
+sig_meta_data <- read.csv(sig_meta_data_path, sep = '\t')
+sig_metrics_data <- read.csv(sig_metrics_path, sep = '\t')
+
+
+```
+
+### Find the list of landmark genes that are sharded with the HF dataset
+```{r Get shared LM genes}
+
+# Genes that are both LM and in the HF dataset 
+lm_genes <- filter(gene_meta_data, pr_is_lm == 1) %>%
+  filter(pr_gene_symbol %in% HF_data$external_gene_name)
+
+#Cast rownames to string for comparison against names in level 5 dataset 
+rownames(lm_genes) <- sapply(rownames(lm_genes), as.character)
+```
+
+### Get a list of signatures that meet the "is_gold" heuristic used by CMap. 
+is_gold definition: A heuristic for assessing whether a signature is reproducible and distinct. Requirements include: distil_cc_q75 >= 0.2 and pct_self_rank_q25 <= 0.05. 
+
+distil_cc_q75: 75th quantile of pairwise spearman correlations in landmark space of replicate level 4 profiles
+
+pct_self_rank_q25: Self connectivity of replicates expressed as a percentage of total instances in a replicate set.
+
+See here for more info: https://clue.io/connectopedia/glossary
+```{r Get is_gold signatures}
+
+min_distil_cc_q75 <- 0.2
+max_pct_self_rank_q25 <- 0.05
+
+is_gold_sigs <- filter(sig_metrics_data, distil_cc_q75 >= min_distil_cc_q75) %>%
+  filter(pct_self_rank_q25 <= max_pct_self_rank_q25) 
+
+```
+
+
+### Construct and save a dataframe of HF expression values for shared landmark genes
+```{r get_HF_landmark_gene_data}
+HF_LM_data <- filter(HF_data, external_gene_name %in% lm_genes$pr_gene_symbol) %>%
+  merge(lm_genes, by.x = 'external_gene_name', by.y = 'pr_gene_symbol')
+
+write.csv(HF_LM_data, "HF_LM_genes_DEG_data.csv")
+rm(HF_data, HF_LM_data)
+```
+
+
+### Build a function we'll use to load the GCTX data as subsets 
+
+
+```{r Function for reading GCTX in subsets}
+
+readSubsetGCTX = function(path, col_ids = FALSE) {
+  if (isFALSE(col_ids)){
+    df <- parse_gctx(path)
+    return (df)  
+  }
+  df <- parse_gctx(path, cid=col_ids)
+  return (df)
+}
+```
+
+### Load subsets of the data in a loop
+
+```{r subset loading loop}
+setwd("~/Bioinformatics/Drug repurposing autoencoder/LINCS_level_5/")
+
+#df for expression values of shared landmark and HF genes 
+exp_df = data.frame()
+
+# Get all possible signature IDs and setup subsetting
+subset_size = 10000
+sig_ids = sig_meta_data$sig_id
+number_of_subsets = round(length(sig_ids) / subset_size) 
+
+for (i in (0:number_of_subsets)){
+  
+  print(sprintf("Subset %i / %i", i + 1, number_of_subsets + 1))
+  
+  ss_start <- (i * subset_size)
+  ss_end <- ((i + 1) * subset_size)
+  
+  if (i == number_of_subsets){
+    ss_end <- length(sig_ids)
+  }
+  
+  subset_sig_ids = sig_ids[ss_start:ss_end]
+  df <- readSubsetGCTX(lincs_data_path, col_ids = subset_sig_ids)
+  df <-  mat(df) %>% as.data.frame()
+  
+  print(nrow(exp_df))
+ 
+  if (nrow(exp_df) == 0){
+    
+    exp_df <- filter(df, rownames(df) %in% lm_genes$pr_gene_id) %>% rownames_to_column()
+  } else{
+    
+    subset_df <- filter(df, rownames(df) %in% lm_genes$pr_gene_id) %>% rownames_to_column()
+    
+    if(nrow(subset_df) != nrow(exp_df)){
+      print("Missing genes!")
+      break
+    }
+    exp_df <- full_join(exp_df, subset_df, by = "rowname", keep = NULL)
+  }
+  rm(df)
+}
+
+is_gold_idx <- which(colnames(exp_df) %in% is_gold_sigs$sig_id)
+is_gold_exp_df <- exp_df[, is_gold_idx]
+
+```
+### Save the filtered modZ vectors
+```{r Saving results}
+setwd("~/Bioinformatics/Drug repurposing autoencoder/LINCS_level_5/data")
+
+#load("shared_landmark_modZ_vecs.rds")
+
+
+#As csv: 
+write.csv(mat, 'GSE92742_Level5_isgold_lm_hf_modZ.csv')
+
+#As rds:
+#save(is_gold_exp_df, file = "GSE92742_Level5_isgold_lm_hf_modZ.rds")
+
+### This code is very slow - forming the df into a matrix prior to passing to the gctx constructor is a driver. 
+# Form into a GCTX object
+mat=as.matrix(is_gold_exp_df)
+gctx_out <- new("GCT", mat=mat)
+
+# Write for future use
+write_gct(gctx_out, "shared_landmark_modZ_vecs.gctx")
+
+```

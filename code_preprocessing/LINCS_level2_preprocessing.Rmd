@@ -1,0 +1,96 @@
+---
+title: "LINCS_level2_preprocessing"
+author: "Aaron Troy"
+date: "2023-02-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r importLibs}
+suppressMessages(library(dplyr))
+suppressMessages(library(cmapR))
+suppressMessages(library(tibble))
+```
+
+
+
+### Read in the required meta data
+
+```{r readMetaDAta}
+lincs_data_path = "../data/GSE92742_Broad_LINCS_Level2_GEX_epsilon_n1269922x978.gctx"
+hf_data_path = "../data/unadjusted_DEGs_deseq.csv"
+gene_meta_data_path = "../meta_data/GSE92742_Broad_LINCS_gene_info.txt"
+inst_meta_data_path = "../meta_data/GSE92742_Broad_LINCS_inst_info.txt"
+#sig_meta_data_path = "meta_data/GSE92742_Broad_LINCS_sig_info.txt"
+#sig_metrics_path = "meta_data/GSE92742_Broad_LINCS_sig_metrics.txt"
+
+HF_data <- read.csv(hf_data_path, sep = ',')
+
+gene_meta_data <- read.csv(gene_meta_data_path, sep = '\t')
+inst_meta_data <- read.csv(inst_meta_data_path, sep = '\t')
+#sig_meta_data <- read.csv(sig_meta_data_path, sep = '\t')
+#sig_metrics_data <- read.csv(sig_metrics_path, sep = '\t')
+
+
+```
+
+
+### Find the list of landmark genes that are sharded with the HF dataset
+```{r Get shared LM genes}
+
+# Genes that are both LM and in the HF dataset 
+lm_genes <- filter(gene_meta_data, pr_is_lm == 1) %>%
+  filter(pr_gene_symbol %in% HF_data$external_gene_name)
+
+#Cast rownames to string for comparison against names in level 5 dataset 
+rownames(lm_genes) <- sapply(rownames(lm_genes), as.character)
+```
+
+### It may be desirable to eliminate some pertubations from the input data for the autoencoder. For the time being, let's just try with everything. This is what Uhler's group did. 
+
+```{r Get get perturbations of interest}
+keep_perts <- inst_meta_data
+```
+
+### Construct and save a dataframe of HF expression values for shared landmark genes
+```{r get_HF_landmark_gene_data}
+HF_LM_data <- filter(HF_data, external_gene_name %in% lm_genes$pr_gene_symbol) %>%
+  merge(lm_genes, by.x = 'external_gene_name', by.y = 'pr_gene_symbol')
+
+write.csv(HF_LM_data, "../input_data/HF_LM_genes_DEG_data.csv")
+rm(HF_data, HF_LM_data)
+```
+
+
+### Build a function we'll use to load the GCTX data as subsets 
+
+
+```{r Function for reading GCTX in subsets}
+
+readSubsetGCTX = function(path, col_ids = FALSE) {
+  if (isFALSE(col_ids)){
+    df <- parse_gctx(path)
+    return (df)  
+  }
+  df <- parse_gctx(path, cid=col_ids)
+  return (df)
+}
+```
+
+```{r}
+col_ids = keep_perts$inst_id[1:100000]
+level2_gctx_in <- parse_gctx(lincs_data_path, cid = col_ids) %>% 
+  mat() %>%
+  as.data.frame()
+level2_hf_genes <- filter(level2_gctx_in, rownames(level2_gctx_in) %in% lm_genes$pr_gene_id)
+
+# Port to a gctx for faster loading downstream
+level2_hf_gctx_out <- new("GCT", mat=as.matrix(level2_hf_genes))
+
+# Save
+write_gct(level2_hf_gctx_out, "../data/shared_landmark_counts_vecs.gctx")
+```
+
