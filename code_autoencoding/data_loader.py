@@ -8,20 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 def build_loaders(path, batch_size=128, split=0.9, in_format = "counts"):
     # Parse the gctx file, store as dataframe
 
-    if ".gct" in path:
-        gct = parse(path)
-        df = gct.data_df
-    elif ".csv" in path:
-        df = pd.read_csv(path, sep = ',')
-    elif ".txt" in path:
-        df = pd.read_csv(path, sep='\t')
-    else:
-        print("Unsupported file type - options are gctx, gctx, txt, and csv")
-        return -1
 
-    if 'Unnamed: 0' in df.columns:
-        df = df.drop(columns = ['Unnamed: 0'])
-        print('Unnamed dropped')
 
     # Form the data into vectors. Default flags are for log2+1 and max_min scaling
     if (in_format.lower() == 'z_score'):
@@ -42,6 +29,26 @@ def build_loaders(path, batch_size=128, split=0.9, in_format = "counts"):
     test_loader = DataLoader(test_set, batch_size=batch_size, pin_memory=True, shuffle=True)
 
     return train_loader, test_loader
+
+
+def load_CMap(path):
+
+    if ".gct" in path:
+        gct = parse(path)
+        df = gct.data_df
+    elif ".csv" in path:
+        df = pd.read_csv(path, sep = ',')
+    elif ".txt" in path:
+        df = pd.read_csv(path, sep='\t')
+    else:
+        print("Unsupported file type - options are gctx, gctx, txt, and csv")
+        return -1
+
+    if 'Unnamed: 0' in df.columns:
+        df = df.drop(columns = ['Unnamed: 0'])
+        print('Unnamed dropped')
+
+    return df
 
 def vectorize(df: pd.DataFrame, scale_min_max=True, scale_log2_1=True):
     vals = df.values.transpose()
