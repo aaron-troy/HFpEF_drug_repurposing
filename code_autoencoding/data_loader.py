@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 def build_loaders(path, batch_size=128, split=0.9, in_format = "counts"):
     # Parse the gctx file, store as dataframe
 
-    if ".gctx" in path:
+    if ".gct" in path:
         gct = parse(path)
         df = gct.data_df
     elif ".csv" in path:
@@ -16,7 +16,7 @@ def build_loaders(path, batch_size=128, split=0.9, in_format = "counts"):
     elif ".txt" in path:
         df = pd.read_csv(path, sep='\t')
     else:
-        print("Unsupported file type - options are gctx, txt, and csv")
+        print("Unsupported file type - options are gctx, gctx, txt, and csv")
         return -1
 
     if 'Unnamed: 0' in df.columns:
@@ -71,7 +71,6 @@ def log2_1(x):
 
 class TorchVectors(Dataset):
 
-    # Data comes in as a list
     def __init__(self, train_pairs):
         self.train_pairs = train_pairs
 

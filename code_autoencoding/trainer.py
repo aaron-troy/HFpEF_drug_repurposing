@@ -74,7 +74,7 @@ def train_step(AE, optimizer, train_loader):
 
     return train_loss / len(train_loader.dataset)
 
-def val_step(AE, val_loader):
+def val_step(AE, val_loader, prt = False):
 
     #Put in eval mode
     AE.eval()
@@ -89,6 +89,10 @@ def val_step(AE, val_loader):
             output = AE(inputs)
         loss = criterion(output, inputs)
 
+
         val_loss += loss.item() * len(inputs)
+
+        if(prt):
+            print(loss.item() * len(inputs))
 
     return val_loss / len(val_loader.dataset)
