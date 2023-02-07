@@ -21,7 +21,7 @@ suppressMessages(library(tibble))
 
 ```{r readMetaDAta}
 lincs_data_path = "../data/GSE92742_Broad_LINCS_Level2_GEX_epsilon_n1269922x978.gctx"
-hf_data_path = "../data/unadjusted_DEGs_deseq.csv"
+hf_data_path = "../data/unadjusted_normCounts_deseq.csv"
 gene_meta_data_path = "../meta_data/GSE92742_Broad_LINCS_gene_info.txt"
 inst_meta_data_path = "../meta_data/GSE92742_Broad_LINCS_inst_info.txt"
 #sig_meta_data_path = "meta_data/GSE92742_Broad_LINCS_sig_info.txt"
@@ -31,16 +31,12 @@ HF_data <- read.csv(hf_data_path, sep = ',')
 
 gene_meta_data <- read.csv(gene_meta_data_path, sep = '\t')
 inst_meta_data <- read.csv(inst_meta_data_path, sep = '\t')
-#sig_meta_data <- read.csv(sig_meta_data_path, sep = '\t')
-#sig_metrics_data <- read.csv(sig_metrics_path, sep = '\t')
-
 
 ```
 
 
 ### Find the list of landmark genes that are sharded with the HF dataset
 ```{r Get shared LM genes}
-
 # Genes that are both LM and in the HF dataset 
 lm_genes <- filter(gene_meta_data, pr_is_lm == 1) %>%
   filter(pr_gene_symbol %in% HF_data$external_gene_name)
@@ -60,8 +56,8 @@ keep_perts <- inst_meta_data
 HF_LM_data <- filter(HF_data, external_gene_name %in% lm_genes$pr_gene_symbol) %>%
   merge(lm_genes, by.x = 'external_gene_name', by.y = 'pr_gene_symbol')
 
-write.csv(HF_LM_data, "../input_data/HF_LM_genes_DEG_data.csv")
-rm(HF_data, HF_LM_data)
+write.csv(HF_LM_data, "../data/HF_LM_genes_counts.csv")
+#rm(HF_data, HF_LM_data)
 ```
 
 
@@ -81,8 +77,9 @@ readSubsetGCTX = function(path, col_ids = FALSE) {
 ```
 
 ```{r}
-col_ids = keep_perts$inst_id[1:100000]
-level2_gctx_in <- parse_gctx(lincs_data_path, cid = col_ids) %>% 
+# use for subsetting if needed
+#col_ids = keep_perts$inst_id[1:100000]
+level2_gctx_in <- parse_gctx(lincs_data_path) %>% 
   mat() %>%
   as.data.frame()
 level2_hf_genes <- filter(level2_gctx_in, rownames(level2_gctx_in) %in% lm_genes$pr_gene_id)
