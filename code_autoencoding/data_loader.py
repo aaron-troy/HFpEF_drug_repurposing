@@ -7,8 +7,7 @@ from torch.utils.data import DataLoader, Dataset
 
 def build_loaders(path, batch_size=128, split=0.9, in_format = "counts"):
     # Parse the gctx file, store as dataframe
-
-
+    load_CMap(path)
 
     # Form the data into vectors. Default flags are for log2+1 and max_min scaling
     if (in_format.lower() == 'z_score'):

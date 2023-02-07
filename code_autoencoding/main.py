@@ -9,7 +9,7 @@ def main(args):
     data_format = 'counts'
     train_loader, test_loader = dl.build_loaders(path, in_format = data_format)
 
-    latent_sizes = [1100]#[700, 800, 900, 1000, 1100, 1200, 1300, 1400]
+    latent_sizes = [700, 800, 900, 1000, 1100, 1200, 1300, 1400]
 
     for ls in latent_sizes:
 
