@@ -1,0 +1,10 @@
+,File,Non-linearity,Latent dimension,Loss (1e-6),Abs. Alignment
+0,counts150epoch_5pat_leakyReLu_960,5pat,960,10.72,0.647778
+1,counts150epoch_leakyReLu_960_1200,leakyReLu,1200,1.15,0.55859196
+2,counts150epoch_leakyReLu_960_1300,leakyReLu,1300,1.25,0.59091544
+3,counts150epoch_leakyReLu_960_1400,leakyReLu,1400,1.28,0.56608224
+4,counts150epoch_leakyReLu_960_1100,leakyReLu,1100,1.36,0.65368205
+5,counts150epoch_leakyReLu_960_1000,leakyReLu,1000,5.65,0.63692474
+6,counts150epoch_leakyReLu_960_1024,leakyReLu,1024,5.93,0.63692486
+7,counts150epoch_leakyReLu_960_900,leakyReLu,900,62.73,0.6238112
+8,Native,N/A,N/A,0,0.29701653
