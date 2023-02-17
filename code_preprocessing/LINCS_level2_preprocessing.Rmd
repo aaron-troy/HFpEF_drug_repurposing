@@ -16,12 +16,11 @@ suppressMessages(library(tibble))
 ```
 
 
-
 ### Read in the required meta data
 
 ```{r readMetaDAta}
 lincs_data_path = "../data/GSE92742_Broad_LINCS_Level2_GEX_epsilon_n1269922x978.gctx"
-hf_data_path = "../data/unadjusted_normCounts_deseq.csv"
+hf_data_path = "../data/unadj_Cnts_RBCfilt_ensembl.csv"
 gene_meta_data_path = "../meta_data/GSE92742_Broad_LINCS_gene_info.txt"
 inst_meta_data_path = "../meta_data/GSE92742_Broad_LINCS_inst_info.txt"
 #sig_meta_data_path = "meta_data/GSE92742_Broad_LINCS_sig_info.txt"
@@ -65,7 +64,6 @@ write.csv(HF_LM_data, "../data/HF_LM_genes_counts.csv")
 
 
 ```{r Function for reading GCTX in subsets}
-
 readSubsetGCTX = function(path, col_ids = FALSE) {
   if (isFALSE(col_ids)){
     df <- parse_gctx(path)
@@ -78,16 +76,26 @@ readSubsetGCTX = function(path, col_ids = FALSE) {
 
 ```{r}
 # use for subsetting if needed
-#col_ids = keep_perts$inst_id[1:100000]
+col_ids = keep_perts$inst_id[1:100]
 level2_gctx_in <- parse_gctx(lincs_data_path) %>% 
   mat() %>%
   as.data.frame()
 level2_hf_genes <- filter(level2_gctx_in, rownames(level2_gctx_in) %in% lm_genes$pr_gene_id)
+```
+
+```{r concat HF data}
+HF_LM_data_merge <- HF_LM_data[, -which(names(HF_LM_data) %in% c("external_gene_name", "X", "Row.names.y", "pr_gene_title", "pr_is_lm", "pr_is_bing"))]
+level2_hf_genes <- merge(level2_hf_genes, HF_LM_data_merge, by.x = 'row.names', by.y = "pr_gene_id") %>% column_to_rownames("Row.names")
+
+```
+
+```{r writeOut}
+rm(level2_gctx_in, level2_hf_genes)
 
 # Port to a gctx for faster loading downstream
-level2_hf_gctx_out <- new("GCT", mat=as.matrix(level2_hf_genes))
+level2_hf_gctx_out <- new("GCT", mat=as.matrix(level2_pEFmrg_hf_genes))
 
 # Save
-write_gct(level2_hf_gctx_out, "../data/shared_landmark_counts_vecs.gctx")
+write_gctx(level2_hf_gctx_out, "../data/shared_landmark_counts_vecs.gctx", compression_level = 8)
 ```
 
