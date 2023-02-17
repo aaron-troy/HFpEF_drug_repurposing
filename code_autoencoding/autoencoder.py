@@ -31,7 +31,7 @@ class Nonlinearity(torch.nn.Module):
         # return F.selu(x)
         # return F.relu(x)
         # return x
-        #return F.tanh(x)
+        # return F.tanh(x)
         return F.leaky_relu(x)
         # return x + torch.sin(10*x)/5
         # return x + torch.sin(x)

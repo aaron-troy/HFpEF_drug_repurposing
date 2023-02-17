@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, Dataset
 
 def build_loaders(path, batch_size=128, split=0.9, in_format = "counts"):
     # Parse the gctx file, store as dataframe
-    load_CMap(path)
+    df = load_CMap(path)
 
     # Form the data into vectors. Default flags are for log2+1 and max_min scaling
     if (in_format.lower() == 'z_score'):
@@ -85,4 +85,5 @@ class TorchVectors(Dataset):
 
     def __getitem__(self, idx):
         sample = self.train_pairs[idx][1]
-        return torch.from_numpy(sample).float()
+        key = self.train_pairs[idx][0]
+        return key, torch.from_numpy(sample).float()

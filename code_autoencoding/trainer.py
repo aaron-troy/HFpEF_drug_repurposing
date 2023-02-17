@@ -63,7 +63,7 @@ def train_step(AE, optimizer, train_loader):
         #print("Batch: ", idx)
         optimizer.zero_grad()
 
-        inputs = Variable(batch).cuda()
+        inputs = Variable(batch[1]).cuda()
         output = AE(inputs)
 
         loss = criterion(output, inputs)
@@ -84,11 +84,10 @@ def val_step(AE, val_loader, prt = False):
     val_loss = 0
 
     for idx, batch in enumerate(val_loader):
-        inputs = Variable(batch).cuda()
+        inputs = Variable(batch[1]).cuda()
         with torch.no_grad():
             output = AE(inputs)
         loss = criterion(output, inputs)
-
 
         val_loss += loss.item() * len(inputs)
 
